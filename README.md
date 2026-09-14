@@ -1,4 +1,4 @@
-# Northstar Employee Evaluation System
+# Qbel Employee Evaluation System
 
 A self-contained browser prototype for point-based employee evaluations.
 

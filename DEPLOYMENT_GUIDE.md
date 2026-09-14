@@ -1,6 +1,6 @@
 # Deployment Guide: Employee Evaluations
 
-This guide will help you deploy the Northstar People Employee Evaluations app to GitHub and Supabase.
+This guide will help you deploy the Qbel Employee Evaluations app to GitHub and Supabase.
 
 ## Prerequisites
 
@@ -15,7 +15,7 @@ This guide will help you deploy the Northstar People Employee Evaluations app to
 1. Go to [supabase.com](https://supabase.com) and sign in/create an account
 2. Click "New Project"
 3. Fill in the project details:
-   - **Name**: `northstar-people` (or your choice)
+   - **Name**: `qbel-employee-evaluations` (or your choice)
    - **Database Password**: Create a strong password and save it securely
    - **Region**: Select your region
 4. Click "Create new project" and wait for it to initialize (2-3 minutes)
@@ -67,7 +67,7 @@ Replace:
 2. Click **New** (or the "+" icon)
 3. Create a new repository:
    - **Repository name**: `employees-evaluation`
-   - **Description**: "Employee evaluation system for Northstar People"
+   - **Description**: "Employee evaluation system for Qbel"
    - **Public/Private**: Choose based on your needs
    - **Initialize with README**: Yes
 4. Click "Create repository"

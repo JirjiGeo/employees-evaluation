@@ -1,4 +1,4 @@
-# Northstar People - Employee Evaluations
+# Qbel - Employee Evaluations
 
 A modern, real-time employee evaluation system built with vanilla JavaScript and Supabase.
 
@@ -200,7 +200,7 @@ MIT License - feel free to use for your organization
 
 ## Support
 
-- 📧 Email: support@northstarpeople.com
+- 📧 Email: Contact your Qbel system administrator
 - 📖 Docs: See DEPLOYMENT_GUIDE.md
 - 🐛 Issues: GitHub Issues
 - 💬 Discussions: GitHub Discussions
