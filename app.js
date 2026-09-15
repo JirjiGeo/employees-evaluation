@@ -236,6 +236,8 @@ let employees = [
   ,{ id: 'omar', name: 'Omar Haddad', initials: 'OH', department: 'Engineering', role: 'Head of Engineer', evaluator: 'George Mansour', score: 89, status: 'Pending', color: 'mint' }
 ];
 let editingEmployeeId = null;
+let evaluationModalMode = 'new';
+let editingEvaluationIndex = null;
 
 const savedEmployees = JSON.parse(localStorage.getItem('northstar-employees') || '[]');
 const deletedEvaluationIds = new Set(JSON.parse(localStorage.getItem('northstar-deleted-evaluations') || '[]'));
@@ -271,31 +273,36 @@ function avatarMarkup(employee) {
   return `<span class="avatar avatar-${employee.color}">${employee.initials}</span>`;
 }
 
+function employeeEvaluations(employee) {
+  if (Array.isArray(employee.evaluations) && employee.evaluations.length) return employee.evaluations;
+  return employee.evaluation ? [employee.evaluation] : [];
+}
+
 function renderRows() {
   const query = searchInput.value.toLowerCase().trim();
   const department = departmentFilter.value;
-  const filtered = employees.filter((employee) => !employee.evaluationDeleted).filter((employee) => {
-    const matchesQuery = `${employee.name} ${employee.department}`.toLowerCase().includes(query);
+  const filtered = employees.filter((employee) => !employee.deleted).flatMap((employee) => employeeEvaluations(employee).map((evaluation, evaluationIndex) => ({ employee, evaluation, evaluationIndex }))).filter(({ employee, evaluation }) => {
+    const matchesQuery = `${employee.name} ${employee.department} ${employee.role || ''} ${evaluation.date || ''}`.toLowerCase().includes(query);
     return matchesQuery && (department === 'all' || employee.department === department);
-  });
+  }).sort((first, second) => new Date(second.evaluation.date || 0) - new Date(first.evaluation.date || 0));
 
-  rows.innerHTML = filtered.map((employee) => `
+  rows.innerHTML = filtered.map(({ employee, evaluation, evaluationIndex }) => `
     <tr>
-      <td><div class="employee-cell">${avatarMarkup(employee)}<div>${employee.name}<small>${employee.role || employee.department} · Updated Sep 12, 2026</small></div></div></td>
+      <td><div class="employee-cell">${avatarMarkup(employee)}<div>${employee.name}<small>${employee.role || employee.department} · ${escapeHtml(evaluation.date || 'Date not recorded')}</small></div></div></td>
       <td>${employee.department}</td>
       <td>${employee.evaluator}</td>
-      <td><span class="score">${employee.score}<small>/100</small></span></td>
-      <td><span class="status ${employee.status === 'Completed' ? 'complete' : 'pending'}">${employee.status}</span></td>
-      <td><div class="row-actions"><button class="table-more" data-employee-id="${employee.id}" aria-label="More options for ${employee.name}">•••</button><div class="action-menu" data-menu-for="${employee.id}"><button data-action="view" data-employee-id="${employee.id}">View form</button><button data-action="edit" data-employee-id="${employee.id}">Edit evaluation</button><button data-action="delete-evaluation" data-employee-id="${employee.id}">Delete evaluation</button><button data-action="print" data-employee-id="${employee.id}">Export as PDF</button></div></div></td>
-    </tr>`).join('') || '<tr><td colspan="6" class="empty-state">No employees match this search.</td></tr>';
+      <td><span class="score">${evaluation.score ?? employee.score ?? 0}<small>/100</small></span></td>
+      <td><span class="status complete">Completed</span></td>
+      <td><div class="row-actions"><button class="table-more" data-employee-id="${employee.id}" data-evaluation-index="${evaluationIndex}" aria-label="More options for ${employee.name}">•••</button><div class="action-menu" data-menu-for="${employee.id}-${evaluationIndex}"><button data-action="view" data-employee-id="${employee.id}" data-evaluation-index="${evaluationIndex}">View form</button><button data-action="edit" data-employee-id="${employee.id}" data-evaluation-index="${evaluationIndex}">Edit evaluation</button><button data-action="delete-evaluation" data-employee-id="${employee.id}" data-evaluation-index="${evaluationIndex}">Delete evaluation</button><button data-action="print" data-employee-id="${employee.id}" data-evaluation-index="${evaluationIndex}">Export as PDF</button></div></div></td>
+    </tr>`).join('') || '<tr><td colspan="6" class="empty-state">No evaluations match this search.</td></tr>';
   updateDashboardMetrics();
 }
 
 function updateDashboardMetrics() {
-  const activeEmployees = employees.filter((employee) => !employee.evaluationDeleted);
-  const completedEmployees = activeEmployees.filter((employee) => employee.status === 'Completed' || employee.evaluation || Number(employee.score) > 0);
+  const activeEmployees = employees.filter((employee) => !employee.deleted);
+  const completedEmployees = activeEmployees.filter((employee) => employee.status === 'Completed' || employeeEvaluations(employee).length || Number(employee.score) > 0);
   const pendingCount = Math.max(activeEmployees.length - completedEmployees.length, 0);
-  const averageScore = completedEmployees.length ? completedEmployees.reduce((sum, employee) => sum + Number(employee.evaluation?.score ?? employee.score ?? 0), 0) / completedEmployees.length : 0;
+  const averageScore = completedEmployees.length ? completedEmployees.reduce((sum, employee) => sum + Number(latestEvaluation(employee)?.score ?? employee.score ?? 0), 0) / completedEmployees.length : 0;
   const departmentNames = [...new Set(activeEmployees.map((employee) => employee.department))];
   const statValues = document.querySelectorAll('.stats-grid .stat-card strong');
   if (statValues.length >= 4) {
@@ -321,7 +328,7 @@ function updateDashboardMetrics() {
   healthRows.forEach((row) => {
     const department = row.querySelector('strong')?.textContent.trim();
     const departmentEmployees = activeEmployees.filter((employee) => employee.department === department);
-    const departmentCompleted = departmentEmployees.filter((employee) => employee.status === 'Completed' || employee.evaluation || Number(employee.score) > 0);
+    const departmentCompleted = departmentEmployees.filter((employee) => employee.status === 'Completed' || employeeEvaluations(employee).length || Number(employee.score) > 0);
     const percentage = departmentEmployees.length ? Math.round((departmentCompleted.length / departmentEmployees.length) * 100) : 0;
     const count = row.querySelector('.department-count');
     const bar = row.querySelector('.mini-track span');
@@ -334,7 +341,7 @@ function updateDashboardMetrics() {
 
 function renderEmployeeRows() {
   const query = employeeSearchInput.value.toLowerCase().trim();
-  const filtered = employees.filter((employee) => `${employee.name} ${employee.department} ${employee.role || ''} ${employee.reportingTo || ''}`.toLowerCase().includes(query));
+  const filtered = employees.filter((employee) => !employee.deleted).filter((employee) => `${employee.name} ${employee.department} ${employee.role || ''} ${employee.reportingTo || ''}`.toLowerCase().includes(query));
   const employeeHeader = document.querySelector('#employees thead tr');
   if (employeeHeader && !employeeHeader.querySelector('.employee-actions-header')) employeeHeader.insertAdjacentHTML('beforeend', '<th class="employee-actions-header">Actions</th>');
   employeeRows.innerHTML = filtered.map((employee) => `
@@ -344,7 +351,7 @@ function renderEmployeeRows() {
       <td>${employee.role || employee.designation || 'Not assigned'}</td>
       <td>${employee.joiningDate || 'Not provided'}</td>
       <td>${employee.reportingTo || 'Not provided'}</td>
-      <td><div class="employee-row-actions"><button type="button" data-employee-action="edit" data-employee-id="${employee.id}">Edit</button><button type="button" data-employee-action="scores" data-employee-id="${employee.id}">Scores</button></div></td>
+      <td><div class="employee-row-actions"><button type="button" data-employee-action="edit" data-employee-id="${employee.id}">Edit</button><button type="button" data-employee-action="scores" data-employee-id="${employee.id}">Scores</button><button type="button" data-employee-action="delete" data-employee-id="${employee.id}">Delete</button></div></td>
     </tr>`).join('') || '<tr><td colspan="6" class="empty-state">No employees match this search.</td></tr>';
 }
 
@@ -366,9 +373,9 @@ function escapeHtml(value) {
   return String(value || '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character]));
 }
 
-function exportEvaluationPdf(employee) {
+function exportEvaluationPdf(employee, evaluation = latestEvaluation(employee)) {
   const form = getEvaluationForm(employee.department, employee.role);
-  const evaluation = employee.evaluation || {};
+  evaluation = evaluation || {};
   const sections = [
     { title: form.titles?.common || 'Section A · Common Core Competencies', criteria: form.common || commonCriteria },
     { title: form.titles?.process || `Section B · ${employee.department} Process Evaluation`, criteria: form.process },
@@ -378,9 +385,33 @@ function exportEvaluationPdf(employee) {
   ];
   const criteriaIndex = evaluation.criteria || [];
   let criterionIndex = 0;
-  const sectionsHtml = sections.map((section) => `<section><h2>${escapeHtml(section.title)}</h2>${section.criteria.map((group) => `<h3>${escapeHtml(group.section)} <span>${group.weight} points</span></h3><table><thead><tr><th>Criterion</th><th>Weight</th><th>Score</th><th>Weighted score</th></tr></thead><tbody>${group.items.map((criterion) => { const score = criteriaIndex[criterionIndex++] ?? ''; const weighted = score === '' ? '' : ((Number(score) / 5) * criterion.weight).toFixed(1); return `<tr><td>${escapeHtml(criterion.name)}</td><td>${criterion.weight}</td><td>${score === '' ? '—' : `${score}/5`}</td><td>${weighted || '—'}</td></tr>`; }).join('')}</tbody></table>`).join('')}</section>`).join('');
+  const sectionsHtml = sections.map((section) => {
+    const groups = section.criteria.map((group) => {
+      const rows = group.items.map((criterion) => {
+        const score = criteriaIndex[criterionIndex++] ?? '';
+        const weighted = score === '' ? 0 : (Number(score) / 5) * criterion.weight;
+        return { criterion, score, weighted };
+      });
+      const groupWeight = group.weight || rows.reduce((sum, row) => sum + Number(row.criterion.weight || 0), 0);
+      const groupObtained = rows.reduce((sum, row) => sum + row.weighted, 0);
+      const rowsHtml = rows.map((row) => `<tr><td>${escapeHtml(row.criterion.name)}</td><td>${row.criterion.weight}</td><td>${row.score === '' ? '—' : `${row.score}/5`}</td><td>${row.score === '' ? '—' : row.weighted.toFixed(1)}</td></tr>`).join('');
+      return { html: `<h3>${escapeHtml(group.section)} <span>Obtained ${groupObtained.toFixed(1)} / ${groupWeight} points</span></h3><table><thead><tr><th>Criterion</th><th>Weight</th><th>Score</th><th>Weighted score</th></tr></thead><tbody>${rowsHtml}</tbody><tfoot><tr><td colspan="3">Subsection total</td><td>${groupObtained.toFixed(1)} / ${groupWeight}</td></tr></tfoot></table>`, obtained: groupObtained, weight: groupWeight };
+    });
+    const sectionObtained = groups.reduce((sum, group) => sum + group.obtained, 0);
+    const sectionWeight = groups.reduce((sum, group) => sum + group.weight, 0);
+    return `<section><h2>${escapeHtml(section.title)} <span>Obtained ${sectionObtained.toFixed(1)} / ${sectionWeight} points</span></h2>${groups.map((group) => group.html).join('')}</section>`;
+  }).join('');
+  const signatureLabels = [
+    ['employeeSignature', 'Employee Signature'],
+    ['managerSignature', 'Manager Signature'],
+    ['evaluatorSignature', 'Evaluator Signature']
+  ];
+  const signatureHtml = `<div class="signatures">${signatureLabels.map(([id, label]) => {
+    const signature = evaluation.signatures?.[id];
+    return `<div class="signature">${signature ? `<img src="${signature}" alt="${label}" style="display:block;width:100%;height:70px;object-fit:contain;margin-bottom:8px" />` : '<div style="height:70px"></div>'}<span>${label}</span></div>`;
+  }).join('')}</div>`;
   const reportHtml = `<!doctype html><html><head><title>Evaluation - ${escapeHtml(employee.name)}</title><style>body{font-family:Arial,sans-serif;color:#202331;margin:36px}h1{color:#013220;margin-bottom:4px}h2{border-bottom:2px solid #013220;padding-bottom:8px;margin-top:28px}h3{font-size:14px;color:#013220;margin:18px 0 6px}h3 span{float:right;font-size:11px;color:#66756e}.meta{display:grid;grid-template-columns:1fr 1fr;gap:12px;background:#f4f7f5;padding:18px}.meta strong{display:block;font-size:11px;color:#64736c;text-transform:uppercase;margin-bottom:4px}.score{font-size:28px;color:#013220;font-weight:700}table{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:11px}th,td{border:1px solid #d9e2dd;padding:7px;text-align:left}th{background:#edf4f0;color:#365449}.comments{white-space:pre-wrap;border:1px solid #d9e2dd;padding:12px;min-height:45px;margin-bottom:12px}.signatures{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px}.signature{border-top:1px solid #555;padding-top:7px;font-size:11px}@media print{button{display:none}section{break-inside:avoid}}</style></head><body><h1>Qbel FM &amp; Technical Services</h1><p>Employee Evaluation</p><div class="meta"><div><strong>Employee</strong>${escapeHtml(employee.name)}</div><div><strong>Department</strong>${escapeHtml(employee.department)}</div><div><strong>Designation</strong>${escapeHtml(employee.role || 'Not provided')}</div><div><strong>Joining date</strong>${escapeHtml(employee.joiningDate || 'Not provided')}</div><div><strong>Reporting to</strong>${escapeHtml(employee.reportingTo || 'Not provided')}</div><div><strong>Previous score</strong>${Number(employee.score) > 0 ? `${employee.score}/100` : 'No previous evaluation'}</div></div><h2>Evaluation Summary</h2><p class="score">${evaluation.score ?? employee.score ?? 0}/100</p><p>Evaluation date: ${escapeHtml(evaluation.date || new Date().toLocaleDateString())}</p>${sectionsHtml}<h2>Comments</h2><div class="comments"><strong>Employee Area of Development</strong><br>${escapeHtml(evaluation.development)}</div><div class="comments"><strong>Employee Improvement</strong><br>${escapeHtml(evaluation.improvement)}</div><div class="comments"><strong>Employee Strength</strong><br>${escapeHtml(evaluation.strength)}</div><div class="comments"><strong>Direct Manager Comments</strong><br>${escapeHtml(evaluation.managerComments)}</div><div class="comments"><strong>Evaluator Comment</strong><br>${escapeHtml(evaluation.evaluatorComment)}</div><div class="signatures"><div class="signature">Employee Signature</div><div class="signature">Manager Signature</div><div class="signature">Evaluator Signature</div></div><p>Use the print dialog to select “Save as PDF” or print this evaluation.</p></body></html>`;
-  showPrintPreview(reportHtml);
+  showPrintPreview(reportHtml.replace('<div class="signatures"><div class="signature">Employee Signature</div><div class="signature">Manager Signature</div><div class="signature">Evaluator Signature</div></div>', signatureHtml));
 }
 
 function showPrintPreview(reportHtml) {
@@ -400,17 +431,15 @@ function showPrintPreview(reportHtml) {
   preview.querySelector('iframe').srcdoc = reportHtml;
 }
 
-function deleteEvaluation(employee) {
+function deleteEvaluation(employee, evaluationIndex = null) {
   if (!window.confirm(`Delete the evaluation for ${employee.name}? The employee profile will be kept.`)) return;
-  const evaluations = employee.evaluations || (employee.evaluation ? [employee.evaluation] : []);
-  evaluations.pop();
+  const evaluations = [...employeeEvaluations(employee)];
+  const targetIndex = Number.isInteger(evaluationIndex) ? evaluationIndex : evaluations.length - 1;
+  evaluations.splice(targetIndex, 1);
   employee.evaluations = evaluations;
   employee.evaluation = evaluations[evaluations.length - 1] || null;
   employee.score = employee.evaluation?.score || 0;
   employee.status = employee.evaluation ? 'Completed' : 'Pending';
-  employee.evaluationDeleted = true;
-  deletedEvaluationIds.add(employee.id);
-  localStorage.setItem('northstar-deleted-evaluations', JSON.stringify([...deletedEvaluationIds]));
   persistSavedEmployees();
   renderEmployeeRows();
   renderRows();
@@ -462,11 +491,87 @@ function renderCriteria(department, role) {
   }));
 }
 
-function openModal(employee = employees[0]) {
+function latestEvaluation(employee, evaluationIndex = null) {
+  const evaluations = employeeEvaluations(employee);
+  if (Number.isInteger(evaluationIndex)) return evaluations[evaluationIndex] || null;
+  return employee.evaluation || evaluations[evaluations.length - 1] || null;
+}
+
+function applyEvaluationToModal(evaluation) {
+  if (!evaluation) return;
+  const scores = evaluation.criteria || [];
+  document.querySelectorAll('.score-buttons').forEach((group, index) => {
+    const savedScore = scores[index];
+    if (savedScore === undefined || savedScore === null || savedScore === '') return;
+    const selectedButton = group.querySelector(`[data-score="${savedScore}"]`);
+    if (selectedButton) selectedButton.classList.add('selected');
+  });
+  document.querySelector('#evaluationDateInput').value = evaluation.date || new Date().toISOString().slice(0, 10);
+  document.querySelector('#developmentComments').value = evaluation.development || '';
+  document.querySelector('#improvementComments').value = evaluation.improvement || '';
+  document.querySelector('#strengthComments').value = evaluation.strength || '';
+  document.querySelector('#managerComments').value = evaluation.managerComments || '';
+  document.querySelector('#evaluatorComments').value = evaluation.evaluatorComment || '';
+  applySignaturesToModal(evaluation.signatures || {});
+  updateTotal();
+  if (!scores.length && Number(evaluation.score) > 0) totalScore.textContent = evaluation.score;
+}
+
+function signatureIds() {
+  return ['employeeSignature', 'managerSignature', 'evaluatorSignature'];
+}
+
+function getSignatureData() {
+  return signatureIds().reduce((signatures, id) => {
+    const canvas = document.querySelector(`#${id}`);
+    signatures[id] = canvas?.dataset.signed === 'true' ? canvas.toDataURL('image/png') : '';
+    return signatures;
+  }, {});
+}
+
+function applySignaturesToModal(signatures) {
+  signatureIds().forEach((id) => {
+    const canvas = document.querySelector(`#${id}`);
+    const dataUrl = signatures[id];
+    if (!canvas || !dataUrl) return;
+    const image = new Image();
+    image.onload = () => {
+      const context = canvas.getContext('2d');
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      canvas.dataset.signed = 'true';
+    };
+    image.src = dataUrl;
+  });
+}
+
+function setEvaluationModalMode(mode) {
+  evaluationModalMode = mode;
+  const isViewMode = mode === 'view';
+  const isExistingEvaluation = mode === 'view' || mode === 'edit';
+  const saveButton = document.querySelector('#saveEvaluation');
+  document.querySelector('#modalTitle').textContent = isViewMode ? 'View evaluation form' : mode === 'edit' ? 'Edit evaluation' : 'Evaluate an employee';
+  if (saveButton) {
+    saveButton.hidden = isViewMode;
+    saveButton.textContent = mode === 'edit' ? 'Update evaluation' : 'Save evaluation';
+  }
+  document.querySelectorAll('#evaluationModal input, #evaluationModal select, #evaluationModal textarea, #evaluationModal .score-button, #evaluationModal .clear-signature').forEach((field) => {
+    field.disabled = isViewMode;
+  });
+  employeeSelect.disabled = isExistingEvaluation;
+  document.querySelectorAll('#evaluationModal canvas').forEach((canvas) => {
+    canvas.style.pointerEvents = isViewMode ? 'none' : '';
+  });
+}
+
+function openModal(employee = employees[0], options = {}) {
   ensureEvaluationFields();
+  editingEvaluationIndex = Number.isInteger(options.evaluationIndex) ? options.evaluationIndex : null;
   employeeSelect.value = employee.id;
   renderCriteria(employee.department, employee.role);
   updateEvaluationMetadata(employee);
+  if (options.loadEvaluation) applyEvaluationToModal(latestEvaluation(employee, editingEvaluationIndex));
+  setEvaluationModalMode(options.mode || 'new');
   modal.classList.add('open');
   modal.setAttribute('aria-hidden', 'false');
 }
@@ -523,7 +628,7 @@ function updateEvaluationMetadata(employee) {
 }
 
 function updateEmployeeOptions() {
-  employeeSelect.innerHTML = employees.map((employee) => `<option value="${employee.id}">${employee.name} · ${employee.role || employee.department}</option>`).join('');
+  employeeSelect.innerHTML = employees.filter((employee) => !employee.deleted).map((employee) => `<option value="${employee.id}">${employee.name} · ${employee.role || employee.department}</option>`).join('');
 }
 
 function updateDesignationOptions() {
@@ -554,6 +659,20 @@ function ensureBrandStyles() {
 function closeModal() {
   modal.classList.remove('open');
   modal.setAttribute('aria-hidden', 'true');
+  editingEvaluationIndex = null;
+}
+
+function deleteEmployee(employee) {
+  if (!window.confirm(`Delete ${employee.name} and all of their evaluations?`)) return;
+  employees = employees.filter((item) => item.id !== employee.id);
+  persistSavedEmployees();
+  renderEmployeeRows();
+  renderRows();
+  updateEmployeeOptions();
+  updateDashboardMetrics();
+  toast.textContent = 'Employee deleted successfully.';
+  toast.classList.add('show');
+  window.setTimeout(() => toast.classList.remove('show'), 2800);
 }
 
 function ensureEmployeeProfileFields() {
@@ -647,10 +766,11 @@ employeeRows.addEventListener('click', (event) => {
   if (!employee) return;
   if (action.dataset.employeeAction === 'edit') openEmployeeEditor(employee);
   if (action.dataset.employeeAction === 'scores') showEmployeeScores(employee);
+  if (action.dataset.employeeAction === 'delete') deleteEmployee(employee);
 });
 
 function showEmployeeScores(employee) {
-  const evaluations = employee.evaluations || (employee.evaluation ? [employee.evaluation] : []);
+  const evaluations = employeeEvaluations(employee);
   let modalElement = document.querySelector('#scoreHistoryModal');
   if (!modalElement) {
     modalElement = document.createElement('div');
@@ -659,13 +779,31 @@ function showEmployeeScores(employee) {
     modalElement.innerHTML = '<section class="evaluation-modal score-history-modal" role="dialog" aria-modal="true" aria-labelledby="scoreHistoryTitle"><button class="close-button" id="closeScoreHistory" aria-label="Close score history">×</button><span class="section-kicker">Evaluation history</span><h2 id="scoreHistoryTitle"></h2><p class="score-history-subtitle"></p><div class="score-history-list"></div></section>';
     document.body.appendChild(modalElement);
     const style = document.createElement('style');
-    style.textContent = '.score-history-modal{width:min(650px,100%);max-height:85vh;overflow:auto}.score-history-subtitle{color:var(--muted);font-size:12px}.score-history-list{display:grid;gap:10px;margin-top:20px}.score-history-row{display:grid;grid-template-columns:1fr auto;align-items:center;padding:14px;background:#f7faf8;border:1px solid #e3ece7;border-radius:8px}.score-history-row strong{font:600 22px "Space Grotesk";color:var(--brand)}.score-history-row small{display:block;color:var(--muted);margin-top:4px}.score-history-empty{padding:20px;text-align:center;background:#fafafa;color:var(--muted)}';
+    style.textContent = '.score-history-modal{width:min(780px,100%);max-height:85vh;overflow:auto}.score-history-subtitle{color:var(--muted);font-size:12px}.score-history-list{display:grid;gap:10px;margin-top:20px}.score-history-row{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;padding:14px;background:#f7faf8;border:1px solid #e3ece7;border-radius:8px}.score-history-row strong{font:600 18px "Space Grotesk";color:var(--brand)}.score-history-row small{display:block;color:var(--muted);margin-top:4px}.score-history-score{font:700 22px "Space Grotesk";color:var(--brand);white-space:nowrap}.score-history-actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}.score-history-actions button{border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--brand);font-size:10px;font-weight:700;padding:7px 9px}.score-history-actions button:hover{background:#f3f7f4}.score-history-actions button[data-history-action="delete"]{color:#b85c52}.score-history-empty{padding:20px;text-align:center;background:#fafafa;color:var(--muted)}@media(max-width:760px){.score-history-row{grid-template-columns:1fr}.score-history-actions{justify-content:flex-start}}';
     document.head.appendChild(style);
     document.querySelector('#closeScoreHistory').addEventListener('click', () => modalElement.remove());
+    modalElement.addEventListener('click', (event) => {
+      if (event.target === modalElement) modalElement.remove();
+      const action = event.target.closest('[data-history-action]');
+      if (!action) return;
+      const selectedEmployee = employeeById(action.dataset.employeeId);
+      const evaluationIndex = Number(action.dataset.evaluationIndex);
+      if (!selectedEmployee) return;
+      const selectedEvaluation = latestEvaluation(selectedEmployee, evaluationIndex);
+      if (action.dataset.historyAction === 'view' || action.dataset.historyAction === 'edit') {
+        modalElement.remove();
+        openModal(selectedEmployee, { loadEvaluation: true, mode: action.dataset.historyAction, evaluationIndex });
+      }
+      if (action.dataset.historyAction === 'delete') {
+        deleteEvaluation(selectedEmployee, evaluationIndex);
+        if (document.body.contains(modalElement)) showEmployeeScores(selectedEmployee);
+      }
+      if (action.dataset.historyAction === 'print') exportEvaluationPdf(selectedEmployee, selectedEvaluation);
+    });
   }
-  modalElement.querySelector('#scoreHistoryTitle').textContent = `${employee.name} · Score history`;
+  modalElement.querySelector('#scoreHistoryTitle').textContent = `${employee.name} · Evaluation forms`;
   modalElement.querySelector('.score-history-subtitle').textContent = `${employee.department} · ${employee.role || 'Designation not provided'}`;
-  modalElement.querySelector('.score-history-list').innerHTML = evaluations.length ? evaluations.slice().reverse().map((evaluation, index) => `<div class="score-history-row"><div><strong>Evaluation ${evaluations.length - index}</strong><small>${escapeHtml(evaluation.date || 'Date not recorded')}</small></div><strong>${evaluation.score}/100</strong></div>`).join('') : '<div class="score-history-empty">No completed evaluations yet.</div>';
+  modalElement.querySelector('.score-history-list').innerHTML = evaluations.length ? evaluations.map((evaluation, evaluationIndex) => ({ evaluation, evaluationIndex })).reverse().map(({ evaluation, evaluationIndex }) => `<div class="score-history-row"><div><strong>Evaluation ${evaluationIndex + 1}</strong><small>${escapeHtml(evaluation.date || 'Date not recorded')}</small></div><div><div class="score-history-score">${evaluation.score}/100</div><div class="score-history-actions"><button type="button" data-history-action="view" data-employee-id="${employee.id}" data-evaluation-index="${evaluationIndex}">View form</button><button type="button" data-history-action="edit" data-employee-id="${employee.id}" data-evaluation-index="${evaluationIndex}">Edit form</button><button type="button" data-history-action="delete" data-employee-id="${employee.id}" data-evaluation-index="${evaluationIndex}">Delete form</button><button type="button" data-history-action="print" data-employee-id="${employee.id}" data-evaluation-index="${evaluationIndex}">Export PDF</button></div></div></div>`).join('') : '<div class="score-history-empty">No completed evaluation forms yet.</div>';
   modalElement.classList.add('open');
 }
 document.querySelector('#closeModal').addEventListener('click', closeModal);
@@ -678,22 +816,25 @@ rows.addEventListener('click', (event) => {
   if (menuButton) {
     event.stopPropagation();
     document.querySelectorAll('.action-menu').forEach((menu) => menu.classList.remove('open'));
-    document.querySelector(`[data-menu-for="${menuButton.dataset.employeeId}"]`).classList.toggle('open');
+    document.querySelector(`[data-menu-for="${menuButton.dataset.employeeId}-${menuButton.dataset.evaluationIndex}"]`).classList.toggle('open');
     return;
   }
   const actionButton = event.target.closest('.action-menu button');
   if (!actionButton) return;
   const employee = employeeById(actionButton.dataset.employeeId);
+  const evaluationIndex = Number(actionButton.dataset.evaluationIndex);
   document.querySelectorAll('.action-menu').forEach((menu) => menu.classList.remove('open'));
   if (!employee) return;
-  if (actionButton.dataset.action === 'delete-evaluation') deleteEvaluation(employee);
-  if (actionButton.dataset.action === 'print') exportEvaluationPdf(employee);
-  if (actionButton.dataset.action === 'view' || actionButton.dataset.action === 'edit') openModal(employee);
+  const evaluation = latestEvaluation(employee, evaluationIndex);
+  if (actionButton.dataset.action === 'delete-evaluation') deleteEvaluation(employee, evaluationIndex);
+  if (actionButton.dataset.action === 'print') exportEvaluationPdf(employee, evaluation);
+  if (actionButton.dataset.action === 'view' || actionButton.dataset.action === 'edit') openModal(employee, { loadEvaluation: true, mode: actionButton.dataset.action, evaluationIndex });
 });
 employeeSelect.addEventListener('change', () => {
   const employee = employees.find((item) => item.id === employeeSelect.value);
   renderCriteria(employee.department, employee.role);
   updateEvaluationMetadata(employee);
+  updateTotal();
 });
 document.querySelector('#saveEvaluation').addEventListener('click', () => {
   const signaturesComplete = ['employeeSignature', 'managerSignature', 'evaluatorSignature'].every((id) => document.querySelector(`#${id}`).dataset.signed === 'true');
@@ -714,11 +855,18 @@ document.querySelector('#saveEvaluation').addEventListener('click', () => {
       improvement: document.querySelector('#improvementComments').value,
       strength: document.querySelector('#strengthComments').value,
       managerComments: document.querySelector('#managerComments').value,
-      evaluatorComment: document.querySelector('#evaluatorComments').value
+      evaluatorComment: document.querySelector('#evaluatorComments').value,
+      signatures: getSignatureData()
     };
-    employee.evaluations = [...(employee.evaluations || []), evaluation];
-    employee.evaluation = evaluation;
-    employee.score = score;
+    if (evaluationModalMode === 'edit' && (employee.evaluations?.length || employee.evaluation)) {
+      employee.evaluations = [...(employee.evaluations || (employee.evaluation ? [employee.evaluation] : []))];
+      const targetIndex = Number.isInteger(editingEvaluationIndex) ? editingEvaluationIndex : employee.evaluations.length - 1;
+      employee.evaluations[targetIndex] = evaluation;
+    } else {
+      employee.evaluations = [...(employee.evaluations || []), evaluation];
+    }
+    employee.evaluation = employee.evaluations[employee.evaluations.length - 1];
+    employee.score = employee.evaluation?.score || score;
     employee.status = 'Completed';
     employee.evaluationDeleted = false;
     deletedEvaluationIds.delete(employee.id);
