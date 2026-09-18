@@ -15,7 +15,7 @@
   <div class="auth-screen" id="authScreen" aria-hidden="false">
     <section class="auth-container" role="main">
       <div class="auth-header">
-        <div class="brand auth-brand"><span class="brand-mark">Q</span><span class="brand-name">Qbel <small>FM & Technical Services</small></span></div>
+        <div class="brand auth-brand"><span class="brand-mark">Q</span><span class="brand-name">Qbel <small>FM &amp; Technical Services</small></span></div>
         <h1>Employee Evaluations</h1>
         <p>Sign in to your account to continue</p>
       </div>
@@ -26,7 +26,7 @@
         </div>
         <div class="form-group">
           <label for="passwordInput">Password</label>
-          <input id="passwordInput" type="password" required placeholder="••••••••" />
+          <input id="passwordInput" type="password" required placeholder="********" />
         </div>
         <button type="submit" class="primary-button auth-button">Sign In</button>
         <p class="auth-footer">New user? <button type="button" id="toggleSignUp" class="link-button">Create an account</button></p>
@@ -34,41 +34,81 @@
       <div id="authMessage" class="auth-message"></div>
     </section>
   </div>
+
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand"><span class="brand-mark">Q</span><span class="brand-name">Qbel <small>FM &amp; Technical Services</small></span></div>
       <nav class="primary-nav" aria-label="Primary navigation">
-        <a class="nav-item active" href="#overview"><span class="nav-icon">⌂</span>Overview</a>
-        <a class="nav-item" href="#evaluations"><span class="nav-icon">✓</span>Evaluations</a>
-        <a class="nav-item" href="#employees"><span class="nav-icon">◌</span>Employees</a>
-        <a class="nav-item" href="#departments"><span class="nav-icon">▦</span>Departments</a>
+        <a class="nav-item active" href="#overview"><span class="nav-icon">Home</span>Overview</a>
+        <a class="nav-item" href="#evaluations"><span class="nav-icon">Eval</span>Evaluations</a>
+        <a class="nav-item" href="#employees"><span class="nav-icon">Team</span>Employees</a>
+        <a class="nav-item" href="#departments"><span class="nav-icon">Dept</span>Departments</a>
       </nav>
       <div class="sidebar-bottom">
-        <div class="profile-row"><div class="avatar avatar-indigo">GM</div><div><strong>George Mansour</strong><small>Administrator</small></div><span class="more">•••</span></div>
+        <div class="profile-row"><div class="avatar avatar-indigo">GM</div><div><strong>George Mansour</strong><small>Administrator</small></div><span class="more">...</span></div>
       </div>
     </aside>
 
     <main class="main-content" id="overview">
-      <header class="topbar"><div><p class="eyebrow">Monday, September 14, 2026</p><h1>Good morning, George <span class="sun">✦</span></h1></div><div class="top-actions"><button class="icon-button" aria-label="Notifications">♧<span class="notification-dot"></span></button><button class="primary-button" id="newEvaluationButton"><span>＋</span> New evaluation</button></div></header>
+      <header class="topbar">
+        <div><p class="eyebrow">Monday, September 14, 2026</p><h1>Good morning, George <span class="sun">*</span></h1></div>
+        <div class="top-actions"><button class="icon-button" aria-label="Notifications">N<span class="notification-dot"></span></button><button class="primary-button" id="newEvaluationButton"><span>+</span> New evaluation</button></div>
+      </header>
 
       <section class="hero-grid">
-        <div class="hero-panel"><div class="hero-copy"><span class="section-kicker">Evaluation cycle · Q3 2026</span><h2>Make every review<br /><em>count.</em></h2><p>Track progress, capture meaningful feedback, and help every person move forward.</p><button class="dark-button" id="heroStartButton">Start an evaluation <span>↗</span></button></div><div class="hero-orbit"><div class="orbit-ring ring-one"></div><div class="orbit-ring ring-two"></div><div class="orbit-core">Q3<br /><small>cycle</small></div><span class="orbit-star star-one">✦</span><span class="orbit-star star-two">✦</span><span class="orbit-star star-three">✦</span></div></div>
-        <div class="cycle-panel"><div class="panel-heading"><div><span class="section-kicker">Cycle progress</span><h3>Q3 evaluations</h3></div><span class="status-pill" id="cycleStatus">In progress</span></div><div class="cycle-number"><strong id="completedCount">0</strong><span>of <span id="cycleTotal">0</span><br />completed</span></div><div class="progress-track large"><span id="cycleProgressBar" style="width:0%"></span></div><div class="cycle-footer"><span><i class="dot green"></i>Completed <b id="cycleCompletedFooter">0</b></span><span><i class="dot orange"></i>Remaining <b id="cycleRemainingFooter">0</b></span></div></div>
+        <div class="hero-panel">
+          <div class="hero-copy"><span class="section-kicker">Evaluation cycle - Q3 2026</span><h2>Make every review<br /><em>count.</em></h2><p>Track progress, capture meaningful feedback, and help every person move forward.</p><button class="dark-button" id="heroStartButton">Start an evaluation <span>↗</span></button></div>
+          <div class="hero-orbit"><div class="orbit-ring ring-one"></div><div class="orbit-ring ring-two"></div><div class="orbit-core">Q3<br /><small>cycle</small></div><span class="orbit-star star-one">*</span><span class="orbit-star star-two">*</span><span class="orbit-star star-three">*</span></div>
+        </div>
+        <div class="cycle-panel"><div class="panel-heading"><div><span class="section-kicker">Cycle progress</span><h3>Q3 evaluations</h3></div><span class="status-pill" id="cycleStatus">In progress</span></div><div class="cycle-number"><strong id="completedCount">0</strong><span>of <span id="cycleTotal">0</span><br />completed</span></div><div class="progress-track large"><span id="cycleProgressBar"></span></div><div class="cycle-footer"><span><i class="dot green"></i>Completed <b id="cycleCompletedFooter">0</b></span><span><i class="dot orange"></i>Remaining <b id="cycleRemainingFooter">0</b></span></div></div>
       </section>
 
-      <section class="stats-grid"><div class="stat-card"><div class="stat-icon coral">◎</div><div><span>Total employees</span><strong id="totalEmployeesStat">0</strong><small class="trend neutral">Current directory</small></div></div><div class="stat-card"><div class="stat-icon blue">◷</div><div><span>Average score</span><strong><span id="averageScoreStat">0</span><small>/100</small></strong><small class="trend neutral">Completed evaluations</small></div></div><div class="stat-card"><div class="stat-icon yellow">↗</div><div><span>Pending reviews</span><strong id="pendingReviewsStat">0</strong><small class="trend neutral">Open evaluations</small></div></div><div class="stat-card"><div class="stat-icon mint">▤</div><div><span>Departments</span><strong id="departmentsStat">0</strong><small class="trend neutral">Current directory</small></div></div></section>
+      <section class="stats-grid">
+        <div class="stat-card"><div class="stat-icon coral">◎</div><div><span>Total employees</span><strong id="totalEmployeesStat">0</strong><small class="trend neutral">Current directory</small></div></div>
+        <div class="stat-card"><div class="stat-icon blue">◷</div><div><span>Average score</span><strong><span id="averageScoreStat">0</span><small>/100</small></strong><small class="trend neutral">Completed evaluations</small></div></div>
+        <div class="stat-card"><div class="stat-icon yellow">↗</div><div><span>Pending reviews</span><strong id="pendingReviewsStat">0</strong><small class="trend neutral">Open evaluations</small></div></div>
+        <div class="stat-card"><div class="stat-icon mint">▤</div><div><span>Departments</span><strong id="departmentsStat">0</strong><small class="trend neutral">Current directory</small></div></div>
+      </section>
 
-      <section class="workspace-section" id="employees"><div class="section-heading"><div><span class="section-kicker">People directory</span><h2>Employees</h2></div><div class="heading-actions"><div class="search-box"><span>⌕</span><input id="employeeSearchInput" type="search" placeholder="Search employees" /></div><button class="primary-button" id="addEmployeeButton"><span>＋</span> Add employee</button></div></div><div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Designation</th><th>Joining date</th><th>Reporting to</th></tr></thead><tbody id="employeeRows"></tbody></table></div></section>
+      <section class="workspace-section" id="employees">
+        <div class="section-heading"><div><span class="section-kicker">People directory</span><h2>Employees</h2></div><div class="heading-actions"><div class="search-box"><span>Search</span><input id="employeeSearchInput" type="search" placeholder="Search employees" /></div><button class="primary-button" id="addEmployeeButton"><span>+</span> Add employee</button></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Designation</th><th>Joining date</th><th>Reporting to</th></tr></thead><tbody id="employeeRows"></tbody></table></div>
+      </section>
 
-      <section class="workspace-section" id="evaluations"><div class="section-heading"><div><span class="section-kicker">Keep things moving</span><h2>Recent evaluations</h2></div><div class="heading-actions"><div class="search-box"><span>⌕</span><input id="searchInput" type="search" placeholder="Search employees" /></div><select id="departmentFilter" aria-label="Filter by department"><option value="all">All departments</option><option value="HR">HR</option><option value="Operations">Operations</option><option value="Procurement">Procurement</option><option value="Engineering">Engineering</option><option value="IT">IT</option></select><button class="outline-button" id="viewAllButton">View all <span>→</span></button></div></div><div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Evaluator</th><th>Score</th><th>Status</th><th></th></tr></thead><tbody id="evaluationRows"></tbody></table></div></section>
+      <section class="workspace-section" id="evaluations">
+        <div class="section-heading"><div><span class="section-kicker">Keep things moving</span><h2>Recent evaluations</h2></div><div class="heading-actions"><div class="search-box"><span>Search</span><input id="searchInput" type="search" placeholder="Search employees" /></div><select id="departmentFilter" aria-label="Filter by department"><option value="all">All departments</option><option value="HR">HR</option><option value="Operations">Operations</option><option value="Procurement">Procurement</option><option value="Engineering">Engineering</option><option value="IT">IT</option></select><button class="outline-button" id="viewAllButton">View all <span>→</span></button></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Evaluator</th><th>Score</th><th>Status</th><th></th></tr></thead><tbody id="evaluationRows"></tbody></table></div>
+      </section>
 
-      <section class="bottom-grid" id="departments"><div class="department-panel"><div class="section-heading compact"><div><span class="section-kicker">Across the company</span><h2>Department evaluation progress</h2></div><button class="icon-button plain" aria-label="More department options">•••</button></div><div class="department-list"><div class="department-row"><span class="department-color purple"></span><strong>Engineering</strong><span class="department-count">24 people</span><div class="mini-track"><span style="width:88%"></span></div><b>88%</b></div><div class="department-row"><span class="department-color coral"></span><strong>HR</strong><span class="department-count">12 people</span><div class="mini-track"><span style="width:79%"></span></div><b>79%</b></div><div class="department-row"><span class="department-color yellow"></span><strong>Operations</strong><span class="department-count">18 people</span><div class="mini-track"><span style="width:76%"></span></div><b>76%</b></div><div class="department-row"><span class="department-color mint"></span><strong>Procurement</strong><span class="department-count">10 people</span><div class="mini-track"><span style="width:91%"></span></div><b>91%</b></div></div></div><div class="insight-panel"><div class="insight-graphic"><span class="graphic-line"></span><span class="graphic-line short"></span><span class="graphic-dot"></span></div><span class="section-kicker">A little insight</span><h2>Feedback is a<br /><em>growth habit.</em></h2><p>Teams that complete reviews on time show 2.4× more follow-through on their goals.</p></div></section>
+      <section class="bottom-grid" id="departments">
+        <div class="department-panel"><div class="section-heading compact"><div><span class="section-kicker">Across the company</span><h2>Department evaluation progress</h2></div><button class="icon-button plain" aria-label="More department options">...</button></div><div class="department-list"></div></div>
+        <div class="insight-panel"><div class="insight-graphic"><span class="graphic-line"></span><span class="graphic-line short"></span><span class="graphic-dot"></span></div><span class="section-kicker">A little insight</span><h2>Feedback is a<br /><em>growth habit.</em></h2><p>Teams that complete reviews on time show stronger follow-through on their goals.</p></div>
+      </section>
     </main>
   </div>
 
-  <div class="modal-backdrop" id="employeeModal" aria-hidden="true"><section class="evaluation-modal employee-modal" role="dialog" aria-modal="true" aria-labelledby="employeeModalTitle"><button class="close-button" id="closeEmployeeModal" aria-label="Close employee form">×</button><div class="modal-header"><div><span class="section-kicker">People directory</span><h2 id="employeeModalTitle">Add employee</h2><p>Enter the employee details once. They will be available for future evaluations.</p></div></div><form id="employeeForm"><div class="form-row"><label>Full name<input id="fullNameInput" type="text" required placeholder="e.g. Alex Morgan" /></label><label>Department<select id="employeeDepartmentInput" required><option value="">Select department</option><option>HR</option><option>Operations</option><option>Procurement</option><option>Engineering</option></select></label><label>Designation<input id="designationInput" type="text" required placeholder="e.g. Facility Engineer" /></label><label>Joining date<input id="joiningDateInput" type="date" required /></label><label>Reporting to<input id="reportingToInput" type="text" required placeholder="Manager name" /></label></div><div class="modal-footer"><button type="button" class="outline-button" id="cancelEmployeeModal">Cancel</button><button type="submit" class="primary-button">Save employee <span>↗</span></button></div></form></section></div>
+  <div class="modal-backdrop" id="employeeModal" aria-hidden="true">
+    <section class="evaluation-modal employee-modal" role="dialog" aria-modal="true" aria-labelledby="employeeModalTitle">
+      <button class="close-button" id="closeEmployeeModal" aria-label="Close employee form">×</button>
+      <div class="modal-header"><div><span class="section-kicker">People directory</span><h2 id="employeeModalTitle">Add employee</h2><p>Enter the employee details once. They will be available for future evaluations.</p></div></div>
+      <form id="employeeForm"><div class="form-row"><label>Full name<input id="fullNameInput" type="text" required placeholder="e.g. Alex Morgan" /></label><label>Department<select id="employeeDepartmentInput" required><option value="">Select department</option><option>HR</option><option>Operations</option><option>Procurement</option><option>Engineering</option></select></label><label>Designation<input id="designationInput" type="text" required placeholder="e.g. Facility Engineer" /></label><label>Joining date<input id="joiningDateInput" type="date" required /></label><label>Reporting to<input id="reportingToInput" type="text" required placeholder="Manager name" /></label></div><div class="modal-footer"><button type="button" class="outline-button" id="cancelEmployeeModal">Cancel</button><button type="submit" class="primary-button">Save employee <span>↗</span></button></div></form>
+    </section>
+  </div>
 
-  <div class="modal-backdrop" id="evaluationModal" aria-hidden="true"><section class="evaluation-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><button class="close-button" id="closeModal" aria-label="Close evaluation">×</button><div class="modal-header"><div><span class="section-kicker">New evaluation · Q3 2026</span><h2 id="modalTitle">Evaluate an employee</h2><p>Score each criterion from 0 to 5. Weighted points calculate automatically.</p></div><div class="modal-total"><strong id="totalScore">0</strong><span>/100</span><small>live score</small></div></div><div class="form-row"><label>Employee<select id="employeeSelect"></select></label><label>Evaluation period<select><option>Q3 2026</option><option>Q2 2026</option></select></label></div><div class="criteria-header"><span id="commonCriteriaTitle">Section 1 · Common Core Competencies</span><small id="commonWeight">40 points total</small></div><div class="criteria-list" id="commonCriteria"></div><div class="criteria-header department-criteria-header"><span id="departmentCriteriaTitle">Section 2 · HR Process Evaluation</span><small id="departmentWeight">30 points total</small></div><div class="criteria-list" id="departmentCriteria"></div><div class="criteria-header department-criteria-header"><span>Section 3 · Leadership Competencies</span><small id="leadershipWeight">15 points total</small></div><div class="criteria-list" id="leadershipCriteria"></div><div class="criteria-header department-criteria-header"><span>Section 4 · Communication Skills</span><small id="communicationWeight">10 points total</small></div><div class="criteria-list" id="communicationCriteria"></div><div class="criteria-header department-criteria-header"><span>Section 5 · System Knowledge & Digital Competency</span><small id="systemWeight">5 points total</small></div><div class="criteria-list" id="systemCriteria"></div><div class="modal-footer"><span class="autosave"><i class="dot green"></i>Scores update automatically</span><button class="outline-button" id="cancelModal">Cancel</button><button class="primary-button" id="saveEvaluation">Save evaluation <span>↗</span></button></div></section></div>
+  <div class="modal-backdrop" id="evaluationModal" aria-hidden="true">
+    <section class="evaluation-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <button class="close-button" id="closeModal" aria-label="Close evaluation">×</button>
+      <div class="modal-header"><div><span class="section-kicker">New evaluation - Q3 2026</span><h2 id="modalTitle">Evaluate an employee</h2><p>Score each criterion from 0 to 5. Weighted points calculate automatically.</p></div><div class="modal-total"><strong id="totalScore">0</strong><span>/100</span><small>live score</small></div></div>
+      <div class="form-row"><label>Employee<select id="employeeSelect"></select></label><label>Evaluation period<select><option>Q3 2026</option><option>Q2 2026</option></select></label></div>
+      <div class="criteria-header"><span id="commonCriteriaTitle">Section 1 - Common Core Competencies</span><small id="commonWeight">40 points total</small></div><div class="criteria-list" id="commonCriteria"></div>
+      <div class="criteria-header department-criteria-header"><span id="departmentCriteriaTitle">Section 2 - HR Process Evaluation</span><small id="departmentWeight">30 points total</small></div><div class="criteria-list" id="departmentCriteria"></div>
+      <div class="criteria-header department-criteria-header"><span>Section 3 - Leadership Competencies</span><small id="leadershipWeight">15 points total</small></div><div class="criteria-list" id="leadershipCriteria"></div>
+      <div class="criteria-header department-criteria-header"><span>Section 4 - Communication Skills</span><small id="communicationWeight">10 points total</small></div><div class="criteria-list" id="communicationCriteria"></div>
+      <div class="criteria-header department-criteria-header"><span>Section 5 - System Knowledge &amp; Digital Competency</span><small id="systemWeight">5 points total</small></div><div class="criteria-list" id="systemCriteria"></div>
+      <div class="modal-footer"><span class="autosave"><i class="dot green"></i>Scores update automatically</span><div><button type="button" class="outline-button" id="cancelModal">Cancel</button><button type="button" class="primary-button" id="saveEvaluation">Save evaluation</button></div></div>
+    </section>
+  </div>
+
   <div class="toast" id="toast" role="status">Evaluation saved successfully.</div>
   <script src="supabase-config.js"></script>
   <script src="auth.js"></script>

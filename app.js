@@ -222,28 +222,13 @@ const designationFormKeys = {
   'Assistance Purchase': 'purchaseAssistant'
 };
 
-let employees = [
-  { id: 'maya', name: 'Maya Chen', initials: 'MC', department: 'Engineering', role: 'Facility Engineer', evaluator: 'George Mansour', score: 92, status: 'Completed', color: 'blue' },
-  { id: 'lena', name: 'Lena Ortiz', initials: 'LO', department: 'HR', evaluator: 'George Mansour', score: 88, status: 'Completed', color: 'coral' },
-  { id: 'samir', name: 'Samir Patel', initials: 'SP', department: 'Operations', evaluator: 'Ava Williams', score: 76, status: 'Pending', color: 'yellow' },
-  { id: 'operations-manager', name: 'Leah Carter', initials: 'LC', department: 'Operations', role: 'Operation Manager', evaluator: 'George Mansour', score: 0, status: 'Pending', color: 'yellow' },
-  { id: 'customer-support', name: 'Amina Saleh', initials: 'AS', department: 'Customer Service', role: 'Customer Support Representative', evaluator: 'George Mansour', score: 0, status: 'Pending', color: 'coral' },
-  { id: 'nora', name: 'Nora Williams', initials: 'NW', department: 'Procurement', role: 'Procurement Manager', evaluator: 'George Mansour', score: 84, status: 'Completed', color: 'mint' },
-  { id: 'purchase-assistant', name: 'Dana Cole', initials: 'DC', department: 'Procurement', role: 'Assistance Purchase', evaluator: 'Nora Williams', score: 0, status: 'Pending', color: 'coral' },
-  { id: 'it-manager', name: 'Chris Johnson', initials: 'CJ', department: 'IT', role: 'IT Manager', evaluator: 'George Mansour', score: 0, status: 'Pending', color: 'blue' },
-  { id: 'jon', name: 'Jon Bell', initials: 'JB', department: 'Engineering', role: 'Facility Technician', evaluator: 'Ava Williams', score: 81, status: 'Pending', color: 'purple' },
-  { id: 'ravi', name: 'Ravi Morgan', initials: 'RM', department: 'Engineering', role: 'Team Leader/ Supervisor', evaluator: 'George Mansour', score: 87, status: 'Pending', color: 'blue' }
-  ,{ id: 'omar', name: 'Omar Haddad', initials: 'OH', department: 'Engineering', role: 'Head of Engineer', evaluator: 'George Mansour', score: 89, status: 'Pending', color: 'mint' }
-];
+let employees = [];
 let editingEmployeeId = null;
 let evaluationModalMode = 'new';
 let editingEvaluationIndex = null;
 
-const savedEmployees = JSON.parse(localStorage.getItem('northstar-employees') || '[]');
 const deletedEvaluationIds = new Set(JSON.parse(localStorage.getItem('northstar-deleted-evaluations') || '[]'));
-const savedEmployeeIds = new Set(savedEmployees.map((employee) => employee.id));
-employees = employees.map((employee) => savedEmployeeIds.has(employee.id) ? savedEmployees.find((saved) => saved.id === employee.id) : employee).concat(savedEmployees.filter((employee) => !employees.some((current) => current.id === employee.id)));
-employees.forEach((employee) => { if (deletedEvaluationIds.has(employee.id)) employee.evaluationDeleted = true; });
+const cloudEmployeeIds = new Set();
 
 const rows = document.querySelector('#evaluationRows');
 const employeeRows = document.querySelector('#employeeRows');
@@ -363,6 +348,142 @@ function persistSavedEmployees() {
   try { localStorage.setItem('northstar-employees', JSON.stringify(employees)); } catch (error) { localStorage.setItem('northstar-employees', JSON.stringify(employees.map((employee) => ({ ...employee, documents: (employee.documents || []).map(({ name, type, size }) => ({ name, type, size })) })))); }
 }
 
+function isCloudId(id) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(id || ''));
+}
+
+function evaluationFromCloud(record) {
+  return {
+    cloudId: record.id,
+    score: Number(record.score),
+    date: record.evaluation_date,
+    criteria: record.ratings || [],
+    development: record.employee_area_of_development || '',
+    improvement: record.employee_improvement || '',
+    strength: record.employee_strength || '',
+    managerComments: record.direct_manager_comments || '',
+    evaluatorComment: record.evaluator_comment || '',
+    signatures: {
+      employeeSignature: record.employee_signature || '',
+      managerSignature: record.manager_signature || '',
+      evaluatorSignature: record.evaluator_signature || ''
+    }
+  };
+}
+
+async function loadCloudData() {
+  if (!window.supabaseClient) return;
+  const [{ data: employeeRowsFromCloud, error: employeeError }, { data: evaluationRowsFromCloud, error: evaluationError }] = await Promise.all([
+    window.supabaseClient.from('employees').select('*').order('created_at', { ascending: true }),
+    window.supabaseClient.from('evaluations').select('*').order('evaluation_date', { ascending: true })
+  ]);
+  if (employeeError || evaluationError) {
+    console.error('Could not load Supabase data', employeeError || evaluationError);
+    toast.textContent = 'Could not load shared data from Supabase.';
+    toast.classList.add('show');
+    window.setTimeout(() => toast.classList.remove('show'), 3500);
+    return;
+  }
+  const evaluationsByEmployee = new Map();
+  (evaluationRowsFromCloud || []).forEach((record) => {
+    const list = evaluationsByEmployee.get(record.employee_id) || [];
+    list.push(evaluationFromCloud(record));
+    evaluationsByEmployee.set(record.employee_id, list);
+  });
+  cloudEmployeeIds.clear();
+  employees = (employeeRowsFromCloud || []).map((record, index) => {
+    const evaluations = evaluationsByEmployee.get(record.id) || [];
+    const latest = evaluations[evaluations.length - 1];
+    cloudEmployeeIds.add(record.id);
+    return {
+      id: record.id,
+      name: record.full_name,
+      initials: record.full_name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase(),
+      department: record.department,
+      role: record.designation,
+      designation: record.designation,
+      joiningDate: record.joining_date || '',
+      reportingTo: record.reporting_to || '',
+      evaluator: record.reporting_to || '',
+      documents: record.job_description_name ? [{ name: record.job_description_name, dataUrl: record.job_description_url }] : [],
+      evaluations,
+      evaluation: latest || null,
+      score: latest?.score || 0,
+      status: latest ? 'Completed' : 'Pending',
+      color: ['blue', 'coral', 'mint', 'purple', 'yellow'][index % 5]
+    };
+  });
+  persistSavedEmployees();
+  renderEmployeeRows();
+  renderRows();
+  updateEmployeeOptions();
+}
+
+async function syncCloudData() {
+  if (!window.supabaseClient) return;
+  try {
+    const currentCloudIds = new Set();
+    for (const employee of employees.filter((item) => !item.deleted)) {
+      let cloudEmployee;
+      const employeePayload = {
+        full_name: employee.name,
+        department: employee.department,
+        designation: employee.role || employee.designation || 'Not assigned',
+        joining_date: employee.joiningDate || null,
+        reporting_to: employee.reportingTo || employee.evaluator || null,
+        job_description_name: employee.documents?.[0]?.name || null,
+        job_description_url: employee.documents?.[0]?.dataUrl || null,
+        updated_at: new Date().toISOString()
+      };
+      if (isCloudId(employee.id)) {
+        const result = await window.supabaseClient.from('employees').update(employeePayload).eq('id', employee.id).select().single();
+        if (result.error) throw result.error;
+        cloudEmployee = result.data;
+      } else {
+        const result = await window.supabaseClient.from('employees').insert(employeePayload).select().single();
+        if (result.error) throw result.error;
+        cloudEmployee = result.data;
+        employee.id = cloudEmployee.id;
+      }
+      currentCloudIds.add(cloudEmployee.id);
+      const deleteEvaluations = await window.supabaseClient.from('evaluations').delete().eq('employee_id', cloudEmployee.id);
+      if (deleteEvaluations.error) throw deleteEvaluations.error;
+      const evaluations = employeeEvaluations(employee).map((evaluation) => ({
+        employee_id: cloudEmployee.id,
+        evaluation_date: evaluation.date || new Date().toISOString().slice(0, 10),
+        score: Number(evaluation.score || 0),
+        previous_score: null,
+        ratings: evaluation.criteria || [],
+        employee_area_of_development: evaluation.development || null,
+        employee_improvement: evaluation.improvement || null,
+        employee_strength: evaluation.strength || null,
+        direct_manager_comments: evaluation.managerComments || null,
+        evaluator_comment: evaluation.evaluatorComment || null,
+        employee_signature: evaluation.signatures?.employeeSignature || null,
+        manager_signature: evaluation.signatures?.managerSignature || null,
+        evaluator_signature: evaluation.signatures?.evaluatorSignature || null
+      }));
+      if (evaluations.length) {
+        const inserted = await window.supabaseClient.from('evaluations').insert(evaluations);
+        if (inserted.error) throw inserted.error;
+      }
+    }
+    const removedIds = [...cloudEmployeeIds].filter((id) => !currentCloudIds.has(id));
+    if (removedIds.length) {
+      const removed = await window.supabaseClient.from('employees').delete().in('id', removedIds);
+      if (removed.error) throw removed.error;
+      removedIds.forEach((id) => cloudEmployeeIds.delete(id));
+    }
+    currentCloudIds.forEach((id) => cloudEmployeeIds.add(id));
+    persistSavedEmployees();
+  } catch (error) {
+    console.error('Could not save Supabase data', error);
+    toast.textContent = 'Could not save shared data to Supabase.';
+    toast.classList.add('show');
+    window.setTimeout(() => toast.classList.remove('show'), 3500);
+  }
+}
+
 function getEvaluationForm(department, role) {
   const formKey = designationFormKeys[role];
   const formByKey = { customerSupportRepresentative: customerSupportRepresentativeForm, itManager: itManagerForm, headOfEngineering: headOfEngineeringForm, facilityEngineer: facilityEngineerForm, facilityTechnician: facilityTechnicianForm, facilitySupervisorTeamLeader: facilitySupervisorTeamLeaderForm, operationsManager: operationsManagerForm, procurementManager: procurementManagerForm, purchaseAssistant: purchaseAssistantForm };
@@ -441,6 +562,7 @@ function deleteEvaluation(employee, evaluationIndex = null) {
   employee.score = employee.evaluation?.score || 0;
   employee.status = employee.evaluation ? 'Completed' : 'Pending';
   persistSavedEmployees();
+  void syncCloudData();
   renderEmployeeRows();
   renderRows();
   updateDashboardMetrics();
@@ -751,6 +873,7 @@ employeeForm.addEventListener('submit', async (event) => {
   employee.documents = [...(employee.documents || []), ...attachments];
   if (!existing) employees.push(employee);
   persistSavedEmployees();
+  await syncCloudData();
   renderEmployeeRows();
   renderRows();
   updateEmployeeOptions();
@@ -872,6 +995,7 @@ document.querySelector('#saveEvaluation').addEventListener('click', () => {
     deletedEvaluationIds.delete(employee.id);
     localStorage.setItem('northstar-deleted-evaluations', JSON.stringify([...deletedEvaluationIds]));
     persistSavedEmployees();
+    void syncCloudData();
     renderRows();
     updateDashboardMetrics();
   }
@@ -906,3 +1030,6 @@ if (![...departmentFilter.options].some((option) => option.value === 'Customer S
 updateDesignationOptions();
 ensureEmployeeModalStyles();
 ensureBrandStyles();
+
+window.addEventListener('qbel-auth-ready', () => { void loadCloudData(); });
+if (typeof Auth !== 'undefined' && Auth.currentUser) void loadCloudData();

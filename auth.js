@@ -18,6 +18,7 @@ const Auth = {
       if (data?.user) {
         this.currentUser = data.user;
         this.hideAuthScreen();
+        window.dispatchEvent(new Event('qbel-auth-ready'));
         return;
       }
     }
@@ -103,6 +104,7 @@ const Auth = {
         this.showMessage('Login successful! Redirecting...', 'success');
         setTimeout(() => {
           this.hideAuthScreen();
+          window.dispatchEvent(new Event('qbel-auth-ready'));
         }, 800);
       }
     } catch (err) {
