@@ -233,6 +233,8 @@ const cloudEmployeeIds = new Set();
 const rows = document.querySelector('#evaluationRows');
 const employeeRows = document.querySelector('#employeeRows');
 const employeeSearchInput = document.querySelector('#employeeSearchInput');
+const importEmployeesButton = document.querySelector('#importEmployeesButton');
+const employeeCsvInput = document.querySelector('#employeeCsvInput');
 const employeeModal = document.querySelector('#employeeModal');
 const employeeForm = document.querySelector('#employeeForm');
 const searchInput = document.querySelector('#searchInput');
@@ -342,6 +344,89 @@ function renderEmployeeRows() {
 
 function employeeById(id) {
   return employees.find((employee) => employee.id === id);
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let value = '';
+  let quoted = false;
+  const input = text.replace(/^\uFEFF/, '');
+  for (let index = 0; index < input.length; index += 1) {
+    const character = input[index];
+    const nextCharacter = input[index + 1];
+    if (character === '"' && quoted && nextCharacter === '"') {
+      value += '"';
+      index += 1;
+    } else if (character === '"') {
+      quoted = !quoted;
+    } else if (character === ',' && !quoted) {
+      row.push(value.trim());
+      value = '';
+    } else if ((character === '\n' || character === '\r') && !quoted) {
+      if (character === '\r' && nextCharacter === '\n') index += 1;
+      row.push(value.trim());
+      if (row.some((cell) => cell)) rows.push(row);
+      row = [];
+      value = '';
+    } else {
+      value += character;
+    }
+  }
+  row.push(value.trim());
+  if (row.some((cell) => cell)) rows.push(row);
+  return rows;
+}
+
+async function importEmployeesFromCsv(file) {
+  const rows = parseCsv(await file.text());
+  if (rows.length < 2) throw new Error('The CSV must include a header row and at least one employee.');
+  const headers = rows[0].map((header) => header.toLowerCase().replace(/[^a-z0-9]/g, ''));
+  const column = (...names) => names.map((name) => headers.indexOf(name)).find((index) => index >= 0);
+  const nameIndex = column('name', 'fullname', 'employeename');
+  const departmentIndex = column('department');
+  const designationIndex = column('designation', 'role', 'jobtitle');
+  const joiningDateIndex = column('joiningdate', 'dateofjoining');
+  const reportingToIndex = column('reportingto', 'manager', 'managername');
+  if ([nameIndex, departmentIndex, designationIndex].some((index) => index === undefined)) {
+    throw new Error('CSV headers must include name, department, and designation.');
+  }
+  const existingEmployees = new Set(employees.map((employee) => `${employee.name}|${employee.department}`.toLowerCase()));
+  const importedEmployees = [];
+  rows.slice(1).forEach((row, rowIndex) => {
+    const name = row[nameIndex] || '';
+    const department = row[departmentIndex] || '';
+    const role = row[designationIndex] || '';
+    if (!name || !department || !role) return;
+    const duplicateKey = `${name}|${department}`.toLowerCase();
+    if (existingEmployees.has(duplicateKey)) return;
+    existingEmployees.add(duplicateKey);
+    importedEmployees.push({
+      id: `employee-import-${Date.now()}-${rowIndex}`,
+      name,
+      initials: name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase(),
+      department,
+      role,
+      designation: role,
+      joiningDate: joiningDateIndex === undefined ? '' : row[joiningDateIndex] || '',
+      reportingTo: reportingToIndex === undefined ? '' : row[reportingToIndex] || '',
+      evaluator: reportingToIndex === undefined ? '' : row[reportingToIndex] || '',
+      documents: [],
+      evaluations: [],
+      evaluation: null,
+      score: 0,
+      status: 'Pending',
+      color: ['blue', 'coral', 'mint', 'purple', 'yellow'][(employees.length + importedEmployees.length) % 5]
+    });
+  });
+  if (!importedEmployees.length) throw new Error('No new employees were found in the CSV.');
+  employees.push(...importedEmployees);
+  persistSavedEmployees();
+  renderEmployeeRows();
+  renderRows();
+  updateEmployeeOptions();
+  await syncCloudData();
+  return importedEmployees.length;
 }
 
 function persistSavedEmployees() {
@@ -852,6 +937,20 @@ function closeEmployeeModal() {
 document.querySelector('#newEvaluationButton').addEventListener('click', () => openModal());
 document.querySelector('#heroStartButton').addEventListener('click', () => openModal());
 document.querySelector('#addEmployeeButton').addEventListener('click', openEmployeeModal);
+importEmployeesButton.addEventListener('click', () => employeeCsvInput.click());
+employeeCsvInput.addEventListener('change', async () => {
+  const file = employeeCsvInput.files?.[0];
+  employeeCsvInput.value = '';
+  if (!file) return;
+  try {
+    const count = await importEmployeesFromCsv(file);
+    toast.textContent = `${count} employee${count === 1 ? '' : 's'} imported successfully.`;
+  } catch (error) {
+    toast.textContent = error.message;
+  }
+  toast.classList.add('show');
+  window.setTimeout(() => toast.classList.remove('show'), 3500);
+});
 document.querySelector('#closeEmployeeModal').addEventListener('click', closeEmployeeModal);
 document.querySelector('#cancelEmployeeModal').addEventListener('click', closeEmployeeModal);
 employeeModal.addEventListener('click', (event) => { if (event.target === employeeModal) closeEmployeeModal(); });
