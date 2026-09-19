@@ -301,6 +301,38 @@ function quarterFromDate(dateValue) {
   return { key: `${date.getFullYear()}-Q${quarter}`, label: `Q${quarter} ${date.getFullYear()}`, year: date.getFullYear(), quarter };
 }
 
+function updateEvaluationPeriod() {
+  const periodInput = document.querySelector('#evaluationPeriodInput');
+  const periodHeading = document.querySelector('#evaluationPeriodHeading');
+  const quarter = quarterFromDate(document.querySelector('#evaluationDateInput')?.value);
+  const label = quarter?.label || 'Select an evaluation date';
+  periodInput.textContent = label;
+  periodHeading.textContent = quarter ? `New evaluation - ${label}` : 'New evaluation';
+  updatePreviousEvaluationScore();
+}
+
+function previousQuarterFrom(quarter) {
+  if (!quarter) return null;
+  const previousQuarter = quarter.quarter === 1 ? 4 : quarter.quarter - 1;
+  const previousYear = quarter.quarter === 1 ? quarter.year - 1 : quarter.year;
+  return { key: `${previousYear}-Q${previousQuarter}`, label: `Q${previousQuarter} ${previousYear}` };
+}
+
+function updatePreviousEvaluationScore() {
+  const previousScore = document.querySelector('#previousScore');
+  if (!previousScore) return;
+  const employee = employees.find((item) => item.id === employeeSelect.value);
+  const previousQuarter = previousQuarterFrom(quarterFromDate(document.querySelector('#evaluationDateInput')?.value));
+  if (!employee || !previousQuarter) {
+    previousScore.textContent = 'Select an evaluation date';
+    return;
+  }
+  const previousEvaluation = latestEvaluationInQuarter(employee, previousQuarter.key);
+  previousScore.textContent = previousEvaluation
+    ? `${previousEvaluation.score}/100 (${previousQuarter.label})`
+    : `No ${previousQuarter.label} evaluation`;
+}
+
 function quarterSortValue(quarter) {
   return quarter.year * 10 + quarter.quarter;
 }
@@ -799,6 +831,7 @@ function applyEvaluationToModal(evaluation) {
     if (selectedButton) selectedButton.classList.add('selected');
   });
   document.querySelector('#evaluationDateInput').value = evaluation.date || new Date().toISOString().slice(0, 10);
+  updateEvaluationPeriod();
   document.querySelector('#developmentComments').value = evaluation.development || '';
   document.querySelector('#improvementComments').value = evaluation.improvement || '';
   document.querySelector('#strengthComments').value = evaluation.strength || '';
@@ -872,6 +905,7 @@ function ensureEvaluationFields() {
   if (document.querySelector('#evaluationDateInput')) return;
   const formRow = document.querySelector('#evaluationModal .form-row');
   formRow.insertAdjacentHTML('beforeend', '<label>Evaluation date<input id="evaluationDateInput" type="date" required /></label><label>Previous evaluation score<div class="previous-score" id="previousScore">No previous evaluation</div></label>');
+  document.querySelector('#evaluationDateInput').addEventListener('change', updateEvaluationPeriod);
   const footer = document.querySelector('#evaluationModal .modal-footer');
   footer.insertAdjacentHTML('beforebegin', '<div class="evaluation-comments"><label>Employee Area of Development<textarea id="developmentComments" rows="3" placeholder="Add development areas..."></textarea></label><label>Employee Improvement<textarea id="improvementComments" rows="3" placeholder="Add improvement actions..."></textarea></label><label>Employee Strength<textarea id="strengthComments" rows="3" placeholder="Add employee strengths..."></textarea></label><label>Direct Manager Comments<textarea id="managerComments" rows="3" placeholder="Add direct manager comments..."></textarea></label><label>Evaluator Comment<textarea id="evaluatorComments" rows="3" placeholder="Add evaluator comments..."></textarea></label><div class="signature-grid"><label>Employee Signature<div class="signature-pad-wrap"><canvas id="employeeSignature" width="560" height="150"></canvas><button type="button" class="clear-signature" data-pad="employeeSignature">Clear</button></div></label><label>Manager Signature<div class="signature-pad-wrap"><canvas id="managerSignature" width="560" height="150"></canvas><button type="button" class="clear-signature" data-pad="managerSignature">Clear</button></div></label><label>Evaluator Signature<div class="signature-pad-wrap"><canvas id="evaluatorSignature" width="560" height="150"></canvas><button type="button" class="clear-signature" data-pad="evaluatorSignature">Clear</button></div></label></div></div>');
   document.querySelectorAll('.signature-pad-wrap canvas').forEach((canvas) => setupSignaturePad(canvas));
@@ -913,8 +947,7 @@ function clearSignaturePad(canvas) {
 
 function updateEvaluationMetadata(employee) {
   document.querySelector('#evaluationDateInput').value = new Date().toISOString().slice(0, 10);
-  const previousScore = Number(employee.score) > 0 ? `${employee.score}/100` : 'No previous evaluation';
-  document.querySelector('#previousScore').textContent = previousScore;
+  updateEvaluationPeriod();
   ['developmentComments', 'improvementComments', 'strengthComments', 'managerComments', 'evaluatorComments'].forEach((id) => { document.querySelector(`#${id}`).value = ''; });
   ['employeeSignature', 'managerSignature', 'evaluatorSignature'].forEach((id) => clearSignaturePad(document.querySelector(`#${id}`)));
 }

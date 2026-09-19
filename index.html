@@ -114,8 +114,8 @@
   <div class="modal-backdrop" id="evaluationModal" aria-hidden="true">
     <section class="evaluation-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <button class="close-button" id="closeModal" aria-label="Close evaluation">×</button>
-      <div class="modal-header"><div><span class="section-kicker">New evaluation - Q3 2026</span><h2 id="modalTitle">Evaluate an employee</h2><p>Score each criterion from 0 to 5. Weighted points calculate automatically.</p></div><div class="modal-total"><strong id="totalScore">0</strong><span>/100</span><small>live score</small></div></div>
-      <div class="form-row"><label>Employee<select id="employeeSelect"></select></label><label>Evaluation period<select><option>Q3 2026</option><option>Q2 2026</option></select></label></div>
+      <div class="modal-header"><div><span class="section-kicker" id="evaluationPeriodHeading">New evaluation</span><h2 id="modalTitle">Evaluate an employee</h2><p>Score each criterion from 0 to 5. Weighted points calculate automatically.</p></div><div class="modal-total"><strong id="totalScore">0</strong><span>/100</span><small>live score</small></div></div>
+      <div class="form-row"><label>Employee<select id="employeeSelect"></select></label><label>Evaluation period<div class="previous-score" id="evaluationPeriodInput">Select an evaluation date</div></label></div>
       <div class="criteria-header"><span id="commonCriteriaTitle">Section 1 - Common Core Competencies</span><small id="commonWeight">40 points total</small></div><div class="criteria-list" id="commonCriteria"></div>
       <div class="criteria-header department-criteria-header"><span id="departmentCriteriaTitle">Section 2 - HR Process Evaluation</span><small id="departmentWeight">30 points total</small></div><div class="criteria-list" id="departmentCriteria"></div>
       <div class="criteria-header department-criteria-header"><span>Section 3 - Leadership Competencies</span><small id="leadershipWeight">15 points total</small></div><div class="criteria-list" id="leadershipCriteria"></div>
