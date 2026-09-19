@@ -39,10 +39,9 @@
     <aside class="sidebar">
       <div class="brand"><span class="brand-mark">Q</span><span class="brand-name">Qbel <small>FM &amp; Technical Services</small></span></div>
       <nav class="primary-nav" aria-label="Primary navigation">
-        <a class="nav-item active" href="#overview"><span class="nav-icon">Home</span>Overview</a>
-        <a class="nav-item" href="#evaluations"><span class="nav-icon">Eval</span>Evaluations</a>
-        <a class="nav-item" href="#employees"><span class="nav-icon">Team</span>Employees</a>
-        <a class="nav-item" href="#departments"><span class="nav-icon">Dept</span>Departments</a>
+        <a class="nav-item active" href="#dashboard" data-tab="dashboard"><span class="nav-icon">Home</span>Dashboard</a>
+        <a class="nav-item" href="#employees" data-tab="employees"><span class="nav-icon">Team</span>Employees</a>
+        <a class="nav-item" href="#evaluations" data-tab="evaluations"><span class="nav-icon">Eval</span>Evaluations &amp; scoring</a>
       </nav>
       <div class="sidebar-bottom">
         <div class="profile-row"><div class="avatar avatar-indigo">GM</div><div><strong>George Mansour</strong><small>Administrator</small></div><span class="more">...</span></div>
@@ -55,6 +54,7 @@
         <div class="top-actions"><button class="icon-button" aria-label="Notifications">N<span class="notification-dot"></span></button><button class="primary-button" id="newEvaluationButton"><span>+</span> New evaluation</button></div>
       </header>
 
+      <div class="tab-panel active" id="dashboard" data-tab-panel="dashboard">
       <section class="hero-grid">
         <div class="hero-panel">
           <div class="hero-copy"><span class="section-kicker">Evaluation cycle - Q3 2026</span><h2>Make every review<br /><em>count.</em></h2><p>Track progress, capture meaningful feedback, and help every person move forward.</p><button class="dark-button" id="heroStartButton">Start an evaluation <span>↗</span></button></div>
@@ -70,20 +70,36 @@
         <div class="stat-card"><div class="stat-icon mint">▤</div><div><span>Departments</span><strong id="departmentsStat">0</strong><small class="trend neutral">Current directory</small></div></div>
       </section>
 
-      <section class="workspace-section" id="employees">
-        <div class="section-heading"><div><span class="section-kicker">People directory</span><h2>Employees</h2></div><div class="heading-actions"><div class="search-box"><span>Search</span><input id="employeeSearchInput" type="search" placeholder="Search employees" /></div><button class="outline-button" id="importEmployeesButton">Import CSV</button><input id="employeeCsvInput" type="file" accept=".csv,text/csv" hidden /><button class="primary-button" id="addEmployeeButton"><span>+</span> Add employee</button></div></div>
-        <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Designation</th><th>Joining date</th><th>Reporting to</th></tr></thead><tbody id="employeeRows"></tbody></table></div>
-      </section>
-
-      <section class="workspace-section" id="evaluations">
-        <div class="section-heading"><div><span class="section-kicker">Keep things moving</span><h2>Recent evaluations</h2></div><div class="heading-actions"><div class="search-box"><span>Search</span><input id="searchInput" type="search" placeholder="Search employees" /></div><select id="departmentFilter" aria-label="Filter by department"><option value="all">All departments</option><option value="HR">HR</option><option value="Operations">Operations</option><option value="Procurement">Procurement</option><option value="Engineering">Engineering</option><option value="IT">IT</option></select><button class="outline-button" id="viewAllButton">View all <span>→</span></button></div></div>
-        <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Evaluator</th><th>Score</th><th>Status</th><th></th></tr></thead><tbody id="evaluationRows"></tbody></table></div>
+      <section class="workspace-section quarterly-progress-section" id="quarterly-progress">
+        <div class="section-heading">
+          <div><span class="section-kicker">Performance movement</span><h2>Quarterly progress</h2><p class="section-description">Compare each employee's latest score across evaluation quarters.</p></div>
+          <div class="quarter-controls"><label><span id="currentQuarterControlLabel">Current quarter</span><select id="progressCurrentQuarter" aria-label="Current quarter"></select></label><span class="quarter-versus">vs</span><label><span id="previousQuarterControlLabel">Previous quarter</span><select id="progressPreviousQuarter" aria-label="Previous quarter"></select></label></div>
+        </div>
+        <div class="quarter-summary" id="quarterSummary"></div>
+        <div class="department-movement"><div class="movement-heading"><div><span class="section-kicker">Department view</span><h3>Performance movement by department</h3></div><div class="movement-legend"><span><i class="movement-swatch previous"></i><span id="previousMovementLabel">Previous quarter</span></span><span><i class="movement-swatch current"></i><span id="currentMovementLabel">Current quarter</span></span></div></div><div class="movement-chart" id="departmentMovementChart"></div></div>
+        <div class="quarter-employee-heading"><span class="section-kicker">Employee detail</span><h3>Performance by employee</h3></div>
+        <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th id="currentQuarterHeading">Current</th><th id="previousQuarterHeading">Previous</th><th>Change</th><th>Progress</th></tr></thead><tbody id="quarterProgressRows"></tbody></table></div>
       </section>
 
       <section class="bottom-grid" id="departments">
         <div class="department-panel"><div class="section-heading compact"><div><span class="section-kicker">Across the company</span><h2>Department evaluation progress</h2></div><button class="icon-button plain" aria-label="More department options">...</button></div><div class="department-list"></div></div>
         <div class="insight-panel"><div class="insight-graphic"><span class="graphic-line"></span><span class="graphic-line short"></span><span class="graphic-dot"></span></div><span class="section-kicker">A little insight</span><h2>Feedback is a<br /><em>growth habit.</em></h2><p>Teams that complete reviews on time show stronger follow-through on their goals.</p></div>
       </section>
+      </div>
+
+      <div class="tab-panel" id="employeesTab" data-tab-panel="employees">
+      <section class="workspace-section" id="employees">
+        <div class="section-heading"><div><span class="section-kicker">People directory</span><h2>Employees</h2></div><div class="heading-actions"><div class="search-box"><span>Search</span><input id="employeeSearchInput" type="search" placeholder="Search employees" /></div><button class="outline-button" id="importEmployeesButton">Import CSV</button><input id="employeeCsvInput" type="file" accept=".csv,text/csv" hidden /><button class="primary-button" id="addEmployeeButton"><span>+</span> Add employee</button></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Designation</th><th>Joining date</th><th>Reporting to</th></tr></thead><tbody id="employeeRows"></tbody></table></div>
+      </section>
+      </div>
+
+      <div class="tab-panel" id="evaluationsTab" data-tab-panel="evaluations">
+      <section class="workspace-section" id="evaluations">
+        <div class="section-heading"><div><span class="section-kicker">Keep things moving</span><h2>Recent evaluations</h2></div><div class="heading-actions"><div class="search-box"><span>Search</span><input id="searchInput" type="search" placeholder="Search employees" /></div><select id="departmentFilter" aria-label="Filter by department"><option value="all">All departments</option><option value="HR">HR</option><option value="Operations">Operations</option><option value="Procurement">Procurement</option><option value="Engineering">Engineering</option><option value="IT">IT</option></select><button class="outline-button" id="viewAllButton">View all <span>→</span></button></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Evaluator</th><th>Score</th><th>Status</th><th></th></tr></thead><tbody id="evaluationRows"></tbody></table></div>
+      </section>
+      </div>
     </main>
   </div>
 

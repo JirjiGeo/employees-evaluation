@@ -255,6 +255,15 @@ const leadershipWeight = document.querySelector('#leadershipWeight');
 const communicationWeight = document.querySelector('#communicationWeight');
 const systemWeight = document.querySelector('#systemWeight');
 const toast = document.querySelector('#toast');
+const progressCurrentQuarter = document.querySelector('#progressCurrentQuarter');
+const progressPreviousQuarter = document.querySelector('#progressPreviousQuarter');
+const quarterSummary = document.querySelector('#quarterSummary');
+const quarterProgressRows = document.querySelector('#quarterProgressRows');
+const departmentMovementChart = document.querySelector('#departmentMovementChart');
+const previousMovementLabel = document.querySelector('#previousMovementLabel');
+const currentMovementLabel = document.querySelector('#currentMovementLabel');
+const previousQuarterControlLabel = document.querySelector('#previousQuarterControlLabel');
+const currentQuarterControlLabel = document.querySelector('#currentQuarterControlLabel');
 
 function avatarMarkup(employee) {
   return `<span class="avatar avatar-${employee.color}">${employee.initials}</span>`;
@@ -283,6 +292,81 @@ function renderRows() {
       <td><div class="row-actions"><button class="table-more" data-employee-id="${employee.id}" data-evaluation-index="${evaluationIndex}" aria-label="More options for ${employee.name}">•••</button><div class="action-menu" data-menu-for="${employee.id}-${evaluationIndex}"><button data-action="view" data-employee-id="${employee.id}" data-evaluation-index="${evaluationIndex}">View form</button><button data-action="edit" data-employee-id="${employee.id}" data-evaluation-index="${evaluationIndex}">Edit evaluation</button><button data-action="delete-evaluation" data-employee-id="${employee.id}" data-evaluation-index="${evaluationIndex}">Delete evaluation</button><button data-action="print" data-employee-id="${employee.id}" data-evaluation-index="${evaluationIndex}">Export as PDF</button></div></div></td>
     </tr>`).join('') || '<tr><td colspan="6" class="empty-state">No evaluations match this search.</td></tr>';
   updateDashboardMetrics();
+}
+
+function quarterFromDate(dateValue) {
+  const date = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return null;
+  const quarter = Math.floor(date.getMonth() / 3) + 1;
+  return { key: `${date.getFullYear()}-Q${quarter}`, label: `Q${quarter} ${date.getFullYear()}`, year: date.getFullYear(), quarter };
+}
+
+function quarterSortValue(quarter) {
+  return quarter.year * 10 + quarter.quarter;
+}
+
+function latestEvaluationInQuarter(employee, quarterKey) {
+  return employeeEvaluations(employee).filter((evaluation) => quarterFromDate(evaluation.date)?.key === quarterKey).sort((first, second) => new Date(second.date || 0) - new Date(first.date || 0))[0] || null;
+}
+
+function renderQuarterlyProgress() {
+  const activeEmployees = employees.filter((employee) => !employee.deleted);
+  const quarters = [...new Map(activeEmployees.flatMap((employee) => employeeEvaluations(employee).map((evaluation) => quarterFromDate(evaluation.date))).filter(Boolean).map((quarter) => [quarter.key, quarter])).values()].sort((first, second) => quarterSortValue(second) - quarterSortValue(first));
+  if (!progressCurrentQuarter || !progressPreviousQuarter || !quarterSummary || !quarterProgressRows) return;
+  if (!quarters.length) {
+    progressCurrentQuarter.innerHTML = '<option>No quarters yet</option>';
+    progressPreviousQuarter.innerHTML = '<option>No quarters yet</option>';
+    quarterSummary.innerHTML = '<div class="quarter-empty">Quarterly progress will appear after evaluations are recorded.</div>';
+    quarterProgressRows.innerHTML = '<tr><td colspan="6" class="empty-state">No evaluation history yet.</td></tr>';
+    if (departmentMovementChart) departmentMovementChart.innerHTML = '<div class="quarter-empty">Department movement will appear after two quarters are available.</div>';
+    return;
+  }
+  const selectedCurrent = quarters.some((quarter) => quarter.key === progressCurrentQuarter.value) ? progressCurrentQuarter.value : quarters[0].key;
+  const previousOptions = quarters.filter((quarter) => quarter.key !== selectedCurrent);
+  const selectedPrevious = previousOptions.some((quarter) => quarter.key === progressPreviousQuarter.value) ? progressPreviousQuarter.value : previousOptions[0]?.key || '';
+  progressCurrentQuarter.innerHTML = quarters.map((quarter) => `<option value="${quarter.key}">${quarter.label}</option>`).join('');
+  progressPreviousQuarter.innerHTML = previousOptions.length ? previousOptions.map((quarter) => `<option value="${quarter.key}">${quarter.label}</option>`).join('') : '<option value="">No previous quarter</option>';
+  progressCurrentQuarter.value = selectedCurrent;
+  progressPreviousQuarter.value = selectedPrevious;
+  const currentQuarter = quarters.find((quarter) => quarter.key === selectedCurrent);
+  const previousQuarter = quarters.find((quarter) => quarter.key === selectedPrevious);
+  if (currentMovementLabel) currentMovementLabel.textContent = currentQuarter.label;
+  if (previousMovementLabel) previousMovementLabel.textContent = previousQuarter?.label || 'Previous quarter';
+  if (currentQuarterControlLabel) currentQuarterControlLabel.textContent = currentQuarter.label;
+  if (previousQuarterControlLabel) previousQuarterControlLabel.textContent = previousQuarter?.label || 'Previous quarter';
+  const rows = activeEmployees.map((employee) => {
+    const current = latestEvaluationInQuarter(employee, selectedCurrent);
+    const previous = previousQuarter ? latestEvaluationInQuarter(employee, selectedPrevious) : null;
+    const currentScore = current ? Number(current.score) : null;
+    const previousScore = previous ? Number(previous.score) : null;
+    return { employee, currentScore, previousScore, change: currentScore === null || previousScore === null ? null : currentScore - previousScore };
+  }).sort((first, second) => (second.currentScore ?? -1) - (first.currentScore ?? -1));
+  const currentScores = rows.filter((row) => row.currentScore !== null).map((row) => row.currentScore);
+  const previousScores = rows.filter((row) => row.previousScore !== null).map((row) => row.previousScore);
+  const currentAverage = currentScores.length ? currentScores.reduce((sum, score) => sum + score, 0) / currentScores.length : 0;
+  const previousAverage = previousScores.length ? previousScores.reduce((sum, score) => sum + score, 0) / previousScores.length : 0;
+  const changes = rows.filter((row) => row.change !== null);
+  const improvedCount = changes.filter((row) => row.change > 0).length;
+  const averageChange = currentScores.length && previousScores.length ? currentAverage - previousAverage : null;
+  quarterSummary.innerHTML = `<div><span>${escapeHtml(currentQuarter.label)} average</span><strong>${currentAverage.toFixed(1)}<small>/100</small></strong><small>${currentScores.length} evaluated</small></div><div><span>Average change</span><strong class="${averageChange === null ? 'neutral' : averageChange >= 0 ? 'positive' : 'negative'}">${averageChange === null ? '—' : `${averageChange >= 0 ? '+' : ''}${averageChange.toFixed(1)}`}<small>${averageChange === null ? 'Need two quarters' : 'points'}</small></strong><small>${improvedCount} staff improved</small></div><div><span>Comparison coverage</span><strong>${rows.filter((row) => row.currentScore !== null && row.previousScore !== null).length}<small>/${activeEmployees.length}</small></strong><small>${escapeHtml(previousQuarter?.label || 'Previous quarter')} comparison</small></div>`;
+  document.querySelector('#currentQuarterHeading').textContent = currentQuarter.label;
+  document.querySelector('#previousQuarterHeading').textContent = previousQuarter?.label || 'Previous';
+  quarterProgressRows.innerHTML = rows.map(({ employee, currentScore, previousScore, change }) => {
+    const changeClass = change === null ? 'neutral' : change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral';
+    const progressLabel = change === null ? 'Incomplete history' : change > 0 ? 'Improved' : change < 0 ? 'Needs attention' : 'Stable';
+    return `<tr><td><div class="employee-cell">${avatarMarkup(employee)}<div>${escapeHtml(employee.name)}<small>${escapeHtml(employee.role || employee.department)}</small></div></div></td><td>${escapeHtml(employee.department)}</td><td><strong class="quarter-score">${currentScore === null ? '—' : `${currentScore}`}<small>/100</small></strong></td><td>${previousScore === null ? '—' : `${previousScore}/100`}</td><td><strong class="quarter-change ${changeClass}">${change === null ? '—' : `${change >= 0 ? '+' : ''}${change.toFixed(1)}`}</strong></td><td><span class="quarter-status ${changeClass}">${progressLabel}</span></td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="empty-state">No active employees found.</td></tr>';
+  if (departmentMovementChart) {
+    const departments = [...new Set(activeEmployees.map((employee) => employee.department))].sort();
+    departmentMovementChart.innerHTML = departments.map((department) => {
+      const departmentRows = rows.filter((row) => row.employee.department === department);
+      const currentDepartmentScores = departmentRows.filter((row) => row.currentScore !== null).map((row) => row.currentScore);
+      const previousDepartmentScores = departmentRows.filter((row) => row.previousScore !== null).map((row) => row.previousScore);
+      const currentDepartmentAverage = currentDepartmentScores.length ? currentDepartmentScores.reduce((sum, score) => sum + score, 0) / currentDepartmentScores.length : 0;
+      const previousDepartmentAverage = previousDepartmentScores.length ? previousDepartmentScores.reduce((sum, score) => sum + score, 0) / previousDepartmentScores.length : 0;
+      return `<div class="movement-row"><div class="movement-label"><strong>${escapeHtml(department)}</strong></div><div class="movement-bars"><div class="movement-bar-line"><span class="movement-bar previous" style="width:${previousDepartmentAverage}%"></span><b>${previousDepartmentScores.length ? previousDepartmentAverage.toFixed(1) : '—'}</b></div><div class="movement-bar-line"><span class="movement-bar current" style="width:${currentDepartmentAverage}%"></span><b>${currentDepartmentScores.length ? currentDepartmentAverage.toFixed(1) : '—'}</b></div></div></div>`;
+    }).join('') || '<div class="quarter-empty">No departments found.</div>';
+  }
 }
 
 function updateDashboardMetrics() {
@@ -324,6 +408,7 @@ function updateDashboardMetrics() {
     if (bar) bar.style.width = `${percentage}%`;
     if (value) value.textContent = `${percentage}%`;
   });
+  renderQuarterlyProgress();
 }
 
 function renderEmployeeRows() {
@@ -1033,6 +1118,8 @@ document.querySelector('#cancelModal').addEventListener('click', closeModal);
 modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
 searchInput.addEventListener('input', renderRows);
 departmentFilter.addEventListener('change', renderRows);
+progressCurrentQuarter.addEventListener('change', renderQuarterlyProgress);
+progressPreviousQuarter.addEventListener('change', renderQuarterlyProgress);
 rows.addEventListener('click', (event) => {
   const menuButton = event.target.closest('.table-more');
   if (menuButton) {
@@ -1102,13 +1189,14 @@ document.querySelector('#saveEvaluation').addEventListener('click', () => {
   toast.classList.add('show');
   window.setTimeout(() => toast.classList.remove('show'), 2800);
 });
-document.querySelectorAll('.primary-nav a[href^="#"]').forEach((link) => link.addEventListener('click', (event) => {
-  const target = document.querySelector(link.getAttribute('href'));
-  if (!target) return;
+function switchTab(tabName) {
+  document.querySelectorAll('[data-tab-panel]').forEach((panel) => panel.classList.toggle('active', panel.dataset.tabPanel === tabName));
+  document.querySelectorAll('.primary-nav .nav-item').forEach((item) => item.classList.toggle('active', item.dataset.tab === tabName));
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+document.querySelectorAll('.primary-nav [data-tab]').forEach((link) => link.addEventListener('click', (event) => {
   event.preventDefault();
-  target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  document.querySelectorAll('.primary-nav .nav-item').forEach((item) => item.classList.remove('active'));
-  link.classList.add('active');
+  switchTab(link.dataset.tab);
 }));
 document.querySelector('#viewAllButton').addEventListener('click', () => {
   searchInput.value = '';
